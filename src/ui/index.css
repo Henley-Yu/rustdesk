@@ -159,20 +159,30 @@ span.clear-input:hover {
     }
 }
 
+@media platform == "OSX" {
+    .right-pane {
+        background: color(gray-bg-osx);
+    }
+}
+
 @mixin CARD {
-    visibility: hidden;
+    padding: 1.6em;
+    border-spacing: 1em;
+    background: color(bg);
+    border-radius: 1em;
 }
 
 .card-connect {
-    visibility: hidden;
+    @CARD;
+    width: 320px;
 }
 
 .right-buttons {
-    visibility: hidden;
+    text-align: right;
 }
 
 .right-buttons>button {
-    visibility: hidden;
+    margin-left: 1.6em;
 }
 
 div.connect-status {
