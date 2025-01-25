@@ -160,23 +160,19 @@ span.clear-input:hover {
 }
 
 @mixin CARD {
-    padding: 1.6em;
-    border-spacing: 1em;
-    background: color(bg);
-    border-radius: 1em;
+    visibility: hidden;
 }
 
 .card-connect {
-    @CARD;
-    width: 320px;
+    visibility: hidden;
 }
 
 .right-buttons {
-    text-align: right;
+    visibility: hidden;
 }
 
 .right-buttons>button {
-    margin-left: 1.6em;
+    visibility: hidden;
 }
 
 div.connect-status {
