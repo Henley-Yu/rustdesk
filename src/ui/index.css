@@ -141,7 +141,6 @@ span.clear-input:hover {
 }
 
 .right-pane {
-    display: none;
     size: *;
     background: color(gray-bg);
 }
