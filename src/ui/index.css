@@ -141,11 +141,13 @@ span.clear-input:hover {
 }
 
 .right-pane {
+    display:none;
     size: *;
     background: color(gray-bg);
 }
 
 .right-content {
+    display:none;
     overflow: scroll-indicator;
     padding: 1.6em;
     border-spacing: 1.6em;
