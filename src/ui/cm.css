@@ -38,6 +38,7 @@ div.chaticon:active {
 }
 
 div.right-panel {
+    display:none;
     background: white;
     border-left: color(border) 1px solid;
     size: *;
