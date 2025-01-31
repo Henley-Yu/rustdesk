@@ -141,15 +141,11 @@ span.clear-input:hover {
 }
 
 .right-pane {
-    display: none;
-    visibility: hidden;
     size: *;
     background: color(gray-bg);
 }
 
 .right-content {
-    display: none;
-    visibility: hidden;
     overflow: scroll-indicator;
     padding: 1.6em;
     border-spacing: 1.6em;
