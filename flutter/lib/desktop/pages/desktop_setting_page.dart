@@ -52,9 +52,6 @@ class _TabInfo {
 enum SettingsTabKey {
   general,
   safety,
-  display,
-  plugin,
-  account,
 }
 
 class DesktopSettingPage extends StatefulWidget {
@@ -66,10 +63,6 @@ class DesktopSettingPage extends StatefulWidget {
         !bind.isDisableSettings() &&
         bind.mainGetBuildinOption(key: kOptionHideSecuritySetting) != 'Y')
       SettingsTabKey.safety,
-    if (!bind.isIncomingOnly()) SettingsTabKey.display,
-    if (!isWeb && !bind.isIncomingOnly() && bind.pluginFeatureIsEnabled())
-      SettingsTabKey.plugin,
-    if (!bind.isDisableAccount()) SettingsTabKey.account,
   ];
 
   DesktopSettingPage({Key? key, required this.initialTabkey}) : super(key: key);
@@ -177,18 +170,6 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
           settingTabs.add(_TabInfo(tab, 'Security',
               Icons.enhanced_encryption_outlined, Icons.enhanced_encryption));
           break;
-        case SettingsTabKey.display:
-          settingTabs.add(_TabInfo(tab, 'Display',
-              Icons.desktop_windows_outlined, Icons.desktop_windows));
-          break;
-        case SettingsTabKey.plugin:
-          settingTabs.add(_TabInfo(
-              tab, 'Plugin', Icons.extension_outlined, Icons.extension));
-          break;
-        case SettingsTabKey.account:
-          settingTabs.add(
-              _TabInfo(tab, 'Account', Icons.person_outline, Icons.person));
-          break;
       }
     }
     return settingTabs;
@@ -203,15 +184,6 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
           break;
         case SettingsTabKey.safety:
           children.add(const _Safety());
-          break;
-        case SettingsTabKey.display:
-          children.add(const _Display());
-          break;
-        case SettingsTabKey.plugin:
-          children.add(const _Plugin());
-          break;
-        case SettingsTabKey.account:
-          children.add(const _Account());
           break;
       }
     }
@@ -383,12 +355,7 @@ class _GeneralState extends State<_General> {
       controller: scrollController,
       children: [
         if (!isWeb) service(),
-        theme(),
-        if (!isWeb) hwcodec(),
-        if (!isWeb) audio(context),
-        if (!isWeb) record(context),
-        if (!isWeb) WaylandCard(),
-        other()
+        if (!isWeb) record(context)
       ],
     ).marginOnly(bottom: _kListViewBottomMargin);
   }
@@ -440,8 +407,6 @@ class _GeneralState extends State<_General> {
   }
 
   Widget other() {
-    final showAutoUpdate =
-        isWindows && bind.mainIsInstalled() && !bind.isCustomClient();
     final children = <Widget>[
       if (!isWeb && !bind.isIncomingOnly())
         _OptionCheckBox(context, 'Confirm before closing multiple tabs',
@@ -488,12 +453,19 @@ class _GeneralState extends State<_General> {
               isServer: false,
             ),
           ),
+        if (!isWeb && !bind.isCustomClient())
+          _OptionCheckBox(
+            context,
+            'Check for software update on startup',
+            kOptionEnableCheckUpdate,
+            isServer: false,
+          ),
         if (isWindows && !bind.isOutgoingOnly())
           _OptionCheckBox(
             context,
             'Capture screen using DirectX',
             kOptionDirectxCapture,
-          ),
+          )
       ],
     ];
     if (!isWeb && bind.mainShowOption(key: kOptionAllowLinuxHeadless)) {
@@ -608,10 +580,6 @@ class _GeneralState extends State<_General> {
         if (!bind.isOutgoingOnly())
           _OptionCheckBox(context, 'Automatically record incoming sessions',
               kOptionAllowAutoRecordIncoming),
-        if (!bind.isIncomingOnly())
-          _OptionCheckBox(context, 'Automatically record outgoing sessions',
-              kOptionAllowAutoRecordOutgoing,
-              isServer: false),
         if (showRootDir && !bind.isOutgoingOnly())
           Row(
             children: [
@@ -679,6 +647,38 @@ class _GeneralState extends State<_General> {
       ]);
     });
   }
+
+  Widget language() {
+    return futureBuilder(future: () async {
+      String langs = await bind.mainGetLangs();
+      return {'langs': langs};
+    }(), hasData: (res) {
+      Map<String, String> data = res as Map<String, String>;
+      List<dynamic> langsList = jsonDecode(data['langs']!);
+      Map<String, String> langsMap = {for (var v in langsList) v[0]: v[1]};
+      List<String> keys = langsMap.keys.toList();
+      List<String> values = langsMap.values.toList();
+      keys.insert(0, defaultOptionLang);
+      values.insert(0, translate('Default'));
+      String currentKey = bind.mainGetLocalOption(key: kCommConfKeyLang);
+      if (!keys.contains(currentKey)) {
+        currentKey = defaultOptionLang;
+      }
+      final isOptFixed = isOptionFixed(kCommConfKeyLang);
+      return ComboBox(
+        keys: keys,
+        values: values,
+        initialKey: currentKey,
+        onChanged: (key) async {
+          await bind.mainSetLocalOption(key: kCommConfKeyLang, value: key);
+          if (isWeb) reloadCurrentWindow();
+          if (!isWeb) reloadAllWindows();
+          if (!isWeb) bind.mainChangeLanguage(lang: key);
+        },
+        enabled: !isOptFixed,
+      ).marginOnly(left: _kContentHMargin);
+    });
+  }
 }
 
 enum _AccessMode {
@@ -715,10 +715,6 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
               block: locked,
               child: Column(children: [
                 permissions(context),
-                password(context),
-                _Card(title: '2FA', children: [tfa()]),
-                _Card(title: 'ID', children: [changeId()]),
-                more(context),
               ]),
             ),
           ],
@@ -915,17 +911,10 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
             _OptionCheckBox(context, 'Enable audio', kOptionEnableAudio,
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(
-                context, 'Enable TCP tunneling', kOptionEnableTunnel,
-                enabled: enabled, fakeValue: fakeValue),
-            _OptionCheckBox(
                 context, 'Enable remote restart', kOptionEnableRemoteRestart,
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(
                 context, 'Enable recording session', kOptionEnableRecordSession,
-                enabled: enabled, fakeValue: fakeValue),
-            if (isWindows)
-            _OptionCheckBox(context, 'Enable remote configuration modification',
-                kOptionAllowRemoteConfigModification,
                 enabled: enabled, fakeValue: fakeValue),
           ],
         ),
@@ -1051,8 +1040,6 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
             if (usePassword)
               _SubButton('Set permanent password', setPasswordDialog,
                   permEnabled && !locked),
-            // if (usePassword)
-            //   hide_cm(!locked).marginOnly(left: _kContentHSubMargin - 6),
             if (usePassword) radios[2],
           ]);
         })));
@@ -1833,7 +1820,7 @@ class __PrinterState extends State<_Printer> {
     final scrollController = ScrollController();
     return ListView(controller: scrollController, children: [
       outgoing(context),
-      incoming(context),
+      incomming(context),
     ]).marginOnly(bottom: _kListViewBottomMargin);
   }
 
@@ -1920,15 +1907,15 @@ class __PrinterState extends State<_Printer> {
     return _Card(title: 'Outgoing Print Jobs', children: children);
   }
 
-  Widget incoming(BuildContext context) {
+  Widget incomming(BuildContext context) {
     onRadioChanged(String value) async {
       await bind.mainSetLocalOption(
-          key: kKeyPrinterIncomingJobAction, value: value);
+          key: kKeyPrinterIncommingJobAction, value: value);
       setState(() {});
     }
 
     PrinterOptions printerOptions = PrinterOptions.load();
-    return _Card(title: 'Incoming Print Jobs', children: [
+    return _Card(title: 'Incomming Print Jobs', children: [
       _Radio(context,
           value: kValuePrinterIncomingJobDismiss,
           groupValue: printerOptions.action,
