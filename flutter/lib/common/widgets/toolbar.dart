@@ -174,14 +174,6 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
           onPressed: () => connectWithToken(isFileTransfer: true)),
     );
   }
-  // viewCamera
-  if (isDefaultConn && isDesktop) {
-    v.add(
-      TTextMenu(
-          child: Text(translate('View camera')),
-          onPressed: () => connectWithToken(isViewCamera: true)),
-    );
-  }
   // tcpTunneling
   if (isDefaultConn && isDesktop) {
     v.add(
@@ -236,36 +228,6 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
           child: Text(translate('Insert Lock')),
           onPressed: () => bind.sessionLockScreen(sessionId: sessionId)),
     );
-  }
-  // blockUserInput
-  if (isDefaultConn &&
-      ffi.ffiModel.keyboard &&
-      ffi.ffiModel.permissions['block_input'] != false &&
-      pi.platform == kPeerPlatformWindows) // privacy-mode != true ??
-  {
-    v.add(TTextMenu(
-        child: Obx(() => Text(translate(
-            '${BlockInputState.find(id).value ? 'Unb' : 'B'}lock user input'))),
-        onPressed: () {
-          RxBool blockInput = BlockInputState.find(id);
-          bind.sessionToggleOption(
-              sessionId: sessionId,
-              value: '${blockInput.value ? 'un' : ''}block-input');
-          blockInput.value = !blockInput.value;
-        }));
-  }
-  // switchSides
-  if (isDefaultConn &&
-      isDesktop &&
-      ffiModel.keyboard &&
-      pi.platform != kPeerPlatformAndroid &&
-      pi.platform != kPeerPlatformMacOS &&
-      versionCmp(pi.version, '1.2.0') >= 0 &&
-      bind.peerGetSessionsCount(id: id, connType: ffi.connType.index) == 1) {
-    v.add(TTextMenu(
-        child: Text(translate('Switch Sides')),
-        onPressed: () =>
-            showConfirmSwitchSidesDialog(sessionId, id, ffi.dialogManager)));
   }
   // refresh
   if (pi.version.isNotEmpty) {

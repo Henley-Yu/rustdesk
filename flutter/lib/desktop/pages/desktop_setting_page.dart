@@ -52,12 +52,9 @@ class _TabInfo {
 enum SettingsTabKey {
   general,
   safety,
-  network,
   display,
   plugin,
   account,
-  printer,
-  about,
 }
 
 class DesktopSettingPage extends StatefulWidget {
@@ -69,15 +66,10 @@ class DesktopSettingPage extends StatefulWidget {
         !bind.isDisableSettings() &&
         bind.mainGetBuildinOption(key: kOptionHideSecuritySetting) != 'Y')
       SettingsTabKey.safety,
-    if (!bind.isDisableSettings() &&
-        bind.mainGetBuildinOption(key: kOptionHideNetworkSetting) != 'Y')
-      SettingsTabKey.network,
     if (!bind.isIncomingOnly()) SettingsTabKey.display,
     if (!isWeb && !bind.isIncomingOnly() && bind.pluginFeatureIsEnabled())
       SettingsTabKey.plugin,
     if (!bind.isDisableAccount()) SettingsTabKey.account,
-    if (isWindows && bind.mainGetBuildinOption(key: kOptionHideRemotePrinterSetting) != 'Y') SettingsTabKey.printer,
-    SettingsTabKey.about,
   ];
 
   DesktopSettingPage({Key? key, required this.initialTabkey}) : super(key: key);
@@ -185,10 +177,6 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
           settingTabs.add(_TabInfo(tab, 'Security',
               Icons.enhanced_encryption_outlined, Icons.enhanced_encryption));
           break;
-        case SettingsTabKey.network:
-          settingTabs
-              .add(_TabInfo(tab, 'Network', Icons.link_outlined, Icons.link));
-          break;
         case SettingsTabKey.display:
           settingTabs.add(_TabInfo(tab, 'Display',
               Icons.desktop_windows_outlined, Icons.desktop_windows));
@@ -200,14 +188,6 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
         case SettingsTabKey.account:
           settingTabs.add(
               _TabInfo(tab, 'Account', Icons.person_outline, Icons.person));
-          break;
-        case SettingsTabKey.printer:
-          settingTabs
-              .add(_TabInfo(tab, 'Printer', Icons.print_outlined, Icons.print));
-          break;
-        case SettingsTabKey.about:
-          settingTabs
-              .add(_TabInfo(tab, 'About', Icons.info_outline, Icons.info));
           break;
       }
     }
@@ -224,9 +204,6 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
         case SettingsTabKey.safety:
           children.add(const _Safety());
           break;
-        case SettingsTabKey.network:
-          children.add(const _Network());
-          break;
         case SettingsTabKey.display:
           children.add(const _Display());
           break;
@@ -235,12 +212,6 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
           break;
         case SettingsTabKey.account:
           children.add(const _Account());
-          break;
-        case SettingsTabKey.printer:
-          children.add(const _Printer());
-          break;
-        case SettingsTabKey.about:
-          children.add(const _About());
           break;
       }
     }
@@ -413,7 +384,6 @@ class _GeneralState extends State<_General> {
       children: [
         if (!isWeb) service(),
         theme(),
-        _Card(title: 'Language', children: [language()]),
         if (!isWeb) hwcodec(),
         if (!isWeb) audio(context),
         if (!isWeb) record(context),
@@ -517,20 +487,6 @@ class _GeneralState extends State<_General> {
               kOptionD3DRender,
               isServer: false,
             ),
-          ),
-        if (!isWeb && !bind.isCustomClient())
-          _OptionCheckBox(
-            context,
-            'Check for software update on startup',
-            kOptionEnableCheckUpdate,
-            isServer: false,
-          ),
-        if (showAutoUpdate)
-          _OptionCheckBox(
-            context,
-            'Auto update',
-            kOptionAllowAutoUpdate,
-            isServer: true,
           ),
         if (isWindows && !bind.isOutgoingOnly())
           _OptionCheckBox(
@@ -721,38 +677,6 @@ class _GeneralState extends State<_General> {
             ],
           ).marginOnly(left: _kContentHMargin),
       ]);
-    });
-  }
-
-  Widget language() {
-    return futureBuilder(future: () async {
-      String langs = await bind.mainGetLangs();
-      return {'langs': langs};
-    }(), hasData: (res) {
-      Map<String, String> data = res as Map<String, String>;
-      List<dynamic> langsList = jsonDecode(data['langs']!);
-      Map<String, String> langsMap = {for (var v in langsList) v[0]: v[1]};
-      List<String> keys = langsMap.keys.toList();
-      List<String> values = langsMap.values.toList();
-      keys.insert(0, defaultOptionLang);
-      values.insert(0, translate('Default'));
-      String currentKey = bind.mainGetLocalOption(key: kCommConfKeyLang);
-      if (!keys.contains(currentKey)) {
-        currentKey = defaultOptionLang;
-      }
-      final isOptFixed = isOptionFixed(kCommConfKeyLang);
-      return ComboBox(
-        keys: keys,
-        values: values,
-        initialKey: currentKey,
-        onChanged: (key) async {
-          await bind.mainSetLocalOption(key: kCommConfKeyLang, value: key);
-          if (isWeb) reloadCurrentWindow();
-          if (!isWeb) reloadAllWindows();
-          if (!isWeb) bind.mainChangeLanguage(lang: key);
-        },
-        enabled: !isOptFixed,
-      ).marginOnly(left: _kContentHMargin);
     });
   }
 }
@@ -983,17 +907,12 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                 context, 'Enable keyboard/mouse', kOptionEnableKeyboard,
                 enabled: enabled, fakeValue: fakeValue),
             if (isWindows)
-              _OptionCheckBox(
-                  context, 'Enable remote printer', kOptionEnableRemotePrinter,
-                  enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(context, 'Enable clipboard', kOptionEnableClipboard,
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(
                 context, 'Enable file transfer', kOptionEnableFileTransfer,
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(context, 'Enable audio', kOptionEnableAudio,
-                enabled: enabled, fakeValue: fakeValue),
-            _OptionCheckBox(context, 'Enable camera', kOptionEnableCamera,
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(
                 context, 'Enable TCP tunneling', kOptionEnableTunnel,
@@ -1005,9 +924,6 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                 context, 'Enable recording session', kOptionEnableRecordSession,
                 enabled: enabled, fakeValue: fakeValue),
             if (isWindows)
-              _OptionCheckBox(context, 'Enable blocking user input',
-                  kOptionEnableBlockInput,
-                  enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(context, 'Enable remote configuration modification',
                 kOptionAllowRemoteConfigModification,
                 enabled: enabled, fakeValue: fakeValue),
