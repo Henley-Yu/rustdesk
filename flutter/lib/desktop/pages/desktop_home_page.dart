@@ -12,6 +12,7 @@ import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
+import 'package:flutter_hbb/desktop/widgets/update_progress.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/server_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
@@ -22,7 +23,6 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:window_size/window_size.dart' as window_size;
-
 import '../widgets/button.dart';
 
 class DesktopHomePage extends StatefulWidget {
@@ -58,11 +58,16 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final isIncomingOnly = bind.isIncomingOnly();
     return _buildBlock(
-      child: Center(
-        child: buildLeftPane(context),
-      ),
-    );
+        child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        buildLeftPane(context),
+        if (!isIncomingOnly) const VerticalDivider(width: 1),
+        if (!isIncomingOnly) Expanded(child: buildRightPane(context)),
+      ],
+    ));
   }
 
   Widget _buildBlock({required Widget child}) {
@@ -105,6 +110,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           }
         },
       ),
+      buildPluginEntry(),
     ];
     if (isIncomingOnly) {
       children.addAll([
@@ -119,24 +125,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           },
         ).marginOnly(bottom: 6, right: 6)
       ]);
-    } else {
-      children.add(
-        OnlineStatusWidget(
-          onSvcStatusChanged: () {
-            if (isInHomePage()) {
-              Future.delayed(Duration(milliseconds: 300), () {
-                _updateWindowSize();
-              });
-            }
-          },
-        ).marginOnly(bottom: 6, right: 6),
-      );
     }
     final textColor = Theme.of(context).textTheme.titleLarge?.color;
     return ChangeNotifierProvider.value(
       value: gFFI.serverModel,
       child: Container(
-        width: isIncomingOnly ? 350.0 : 350.0,
+        width: isIncomingOnly ? 280.0 : 200.0,
         color: Theme.of(context).colorScheme.background,
         child: Stack(
           children: [
@@ -435,6 +429,28 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   Widget buildHelpCards(String updateUrl) {
+    if (!bind.isCustomClient() &&
+        updateUrl.isNotEmpty &&
+        !isCardClosed &&
+        bind.mainUriPrefixSync().contains('rustdesk')) {
+      final isToUpdate = (isWindows || isMacOS) && bind.mainIsInstalled();
+      String btnText = isToUpdate ? 'Click to update' : 'Click to download';
+      GestureTapCallback onPressed = () async {
+        final Uri url = Uri.parse('https://rustdesk.com/download');
+        await launchUrl(url);
+      };
+      if (isToUpdate) {
+        onPressed = () {
+          handleUpdate(updateUrl);
+        };
+      }
+      return buildInstallCard(
+          "Status",
+          "${translate("new-version-of-{${bind.mainGetAppNameSync()}}-tip")} (${bind.mainGetNewVersion()}).",
+          btnText,
+          onPressed,
+          closeButton: true);
+    }
     if (systemError.isNotEmpty) {
       return buildInstallCard("", systemError, "", () {});
     }
@@ -447,8 +463,15 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           await rustDeskWinManager.closeAllSubWindows();
           bind.mainGotoInstall();
         });
-        }
-      } else if (isMacOS) {
+      } else if (bind.mainIsInstalledLowerVersion()) {
+        return buildInstallCard(
+            "Status", "Your installation is lower version.", "Click to upgrade",
+            () async {
+          await rustDeskWinManager.closeAllSubWindows();
+          bind.mainUpdateMe();
+        });
+      }
+    } else if (isMacOS) {
       final isOutgoingOnly = bind.isOutgoingOnly();
       if (!(isOutgoingOnly || bind.mainIsCanScreenRecording(prompt: false))) {
         return buildInstallCard("Permissions", "config_screen", "Configure",
@@ -476,6 +499,15 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           bind.mainIsInstalledDaemon(prompt: true);
         });
       }
+      //// Disable microphone configuration for macOS. We will request the permission when needed.
+      // else if ((await osxCanRecordAudio() !=
+      //     PermissionAuthorizeType.authorized)) {
+      //   return buildInstallCard("Permissions", "config_microphone", "Configure",
+      //       () async {
+      //     osxRequestAudio();
+      //     watchIsCanRecordAudio = true;
+      //   });
+      // }
     } else if (isLinux) {
       if (bind.isOutgoingOnly()) {
         return Container();
@@ -489,8 +521,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             "Warning",
             "selinux_tip",
             "",
-                () async {},
+            () async {},
             marginTop: LinuxCards.isEmpty ? 20.0 : 5.0,
+            help: 'Help',
+            link:
+                'https://rustdesk.com/docs/en/client/linux/#permissions-issue',
             closeButton: true,
             closeOption: keyShowSelinuxHelpTip,
           ));
@@ -499,11 +534,15 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       if (bind.mainCurrentIsWayland()) {
         LinuxCards.add(buildInstallCard(
             "Warning", "wayland_experiment_tip", "", () async {},
-            marginTop: LinuxCards.isEmpty ? 20.0 : 5.0));
+            marginTop: LinuxCards.isEmpty ? 20.0 : 5.0,
+            help: 'Help',
+            link: 'https://rustdesk.com/docs/en/client/linux/#x11-required'));
       } else if (bind.mainIsLoginWayland()) {
         LinuxCards.add(buildInstallCard("Warning",
             "Login screen using Wayland is not supported", "", () async {},
-            marginTop: LinuxCards.isEmpty ? 20.0 : 5.0));
+            marginTop: LinuxCards.isEmpty ? 20.0 : 5.0,
+            help: 'Help',
+            link: 'https://rustdesk.com/docs/en/client/linux/#login-screen'));
       }
       if (LinuxCards.isNotEmpty) {
         return Column(
@@ -517,6 +556,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         child: OutlinedButton(
           onPressed: () {
             SystemNavigator.pop(); // Close the application
+            // https://github.com/flutter/flutter/issues/66631
             if (isWindows) {
               exit(0);
             }
@@ -827,6 +867,21 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     if (state == AppLifecycleState.resumed) {
       shouldBeBlocked(_block, canBeBlocked);
     }
+  }
+
+  Widget buildPluginEntry() {
+    final entries = PluginUiManager.instance.entries.entries;
+    return Offstage(
+      offstage: entries.isEmpty,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ...entries.map((entry) {
+            return entry.value;
+          })
+        ],
+      ),
+    );
   }
 }
 
