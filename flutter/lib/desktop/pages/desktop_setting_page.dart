@@ -52,7 +52,6 @@ class _TabInfo {
 enum SettingsTabKey {
   general,
   safety,
-  network,
   display,
   plugin,
   account,
@@ -69,9 +68,6 @@ class DesktopSettingPage extends StatefulWidget {
         !bind.isDisableSettings() &&
         bind.mainGetBuildinOption(key: kOptionHideSecuritySetting) != 'Y')
       SettingsTabKey.safety,
-    if (!bind.isDisableSettings() &&
-        bind.mainGetBuildinOption(key: kOptionHideNetworkSetting) != 'Y')
-      SettingsTabKey.network,
     if (!bind.isIncomingOnly()) SettingsTabKey.display,
     if (!isWeb && !bind.isIncomingOnly() && bind.pluginFeatureIsEnabled())
       SettingsTabKey.plugin,
@@ -187,10 +183,6 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
           settingTabs.add(_TabInfo(tab, 'Security',
               Icons.enhanced_encryption_outlined, Icons.enhanced_encryption));
           break;
-        case SettingsTabKey.network:
-          settingTabs
-              .add(_TabInfo(tab, 'Network', Icons.link_outlined, Icons.link));
-          break;
         case SettingsTabKey.display:
           settingTabs.add(_TabInfo(tab, 'Display',
               Icons.desktop_windows_outlined, Icons.desktop_windows));
@@ -225,9 +217,6 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
           break;
         case SettingsTabKey.safety:
           children.add(const _Safety());
-          break;
-        case SettingsTabKey.network:
-          children.add(const _Network());
           break;
         case SettingsTabKey.display:
           children.add(const _Display());
@@ -1441,152 +1430,6 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
   }
 }
 
-class _Network extends StatefulWidget {
-  const _Network({Key? key}) : super(key: key);
-
-  @override
-  State<_Network> createState() => _NetworkState();
-}
-
-class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-  bool locked = !isWeb && bind.mainIsInstalled();
-
-  final scrollController = ScrollController();
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    return ListView(controller: scrollController, children: [
-      _lock(locked, 'Unlock Network Settings', () {
-        locked = false;
-        setState(() => {});
-      }),
-      preventMouseKeyBuilder(
-        block: locked,
-        child: Column(children: [
-          network(context),
-        ]),
-      ),
-    ]).marginOnly(bottom: _kListViewBottomMargin);
-  }
-
-  Widget network(BuildContext context) {
-    final hideServer =
-        bind.mainGetBuildinOption(key: kOptionHideServerSetting) == 'Y';
-    final hideProxy =
-        isWeb || bind.mainGetBuildinOption(key: kOptionHideProxySetting) == 'Y';
-    // final hideWebSocket = isWeb ||
-    //     bind.mainGetBuildinOption(key: kOptionHideWebSocketSetting) == 'Y';
-    final hideWebSocket = true;
-
-    if (hideServer && hideProxy && hideWebSocket) {
-      return Offstage();
-    }
-
-    // Helper function to create network setting ListTiles
-    Widget listTile({
-      required IconData icon,
-      required String title,
-      VoidCallback? onTap,
-      Widget? trailing,
-      bool showTooltip = false,
-      String tooltipMessage = '',
-    }) {
-      final titleWidget = showTooltip
-          ? Row(
-              children: [
-                Tooltip(
-                  waitDuration: Duration(milliseconds: 1000),
-                  message: translate(tooltipMessage),
-                  child: Row(
-                    children: [
-                      Text(
-                        translate(title),
-                        style: TextStyle(fontSize: _kContentFontSize),
-                      ),
-                      SizedBox(width: 5),
-                      Icon(
-                        Icons.help_outline,
-                        size: 14,
-                        color: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.color
-                            ?.withOpacity(0.7),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            )
-          : Text(
-              translate(title),
-              style: TextStyle(fontSize: _kContentFontSize),
-            );
-
-      return ListTile(
-        leading: Icon(icon, color: _accentColor),
-        title: titleWidget,
-        enabled: !locked,
-        onTap: onTap,
-        trailing: trailing,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16),
-        minLeadingWidth: 0,
-        horizontalTitleGap: 10,
-      );
-    }
-
-    return _Card(
-      title: 'Network',
-      children: [
-        Container(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (!hideServer)
-                listTile(
-                  icon: Icons.dns_outlined,
-                  title: 'ID/Relay Server',
-                  onTap: () => showServerSettings(gFFI.dialogManager),
-                ),
-              if (!hideServer && (!hideProxy || !hideWebSocket))
-                Divider(height: 1, indent: 16, endIndent: 16),
-              if (!hideProxy)
-                listTile(
-                  icon: Icons.network_ping_outlined,
-                  title: 'Socks5/Http(s) Proxy',
-                  onTap: changeSocks5Proxy,
-                ),
-              if (!hideProxy && !hideWebSocket)
-                Divider(height: 1, indent: 16, endIndent: 16),
-              if (!hideWebSocket)
-                listTile(
-                  icon: Icons.web_asset_outlined,
-                  title: 'Use WebSocket',
-                  showTooltip: true,
-                  tooltipMessage: 'websocket_tip',
-                  trailing: Switch(
-                    value: mainGetBoolOptionSync(kOptionAllowWebSocket),
-                    onChanged: locked
-                        ? null
-                        : (value) {
-                            mainSetBoolOption(kOptionAllowWebSocket, value);
-                            setState(() {});
-                          },
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _Display extends StatefulWidget {
   const _Display({Key? key}) : super(key: key);
