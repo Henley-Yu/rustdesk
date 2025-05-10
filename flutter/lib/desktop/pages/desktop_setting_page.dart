@@ -1604,7 +1604,6 @@ class _DisplayState extends State<_Display> {
       scrollStyle(context),
       imageQuality(context),
       codec(context),
-      if (isDesktop) trackpadSpeed(context),
       if (!isWeb) privacyModeImpl(context),
       other(context),
     ]).marginOnly(bottom: _kListViewBottomMargin);
@@ -1689,26 +1688,6 @@ class _DisplayState extends State<_Display> {
         offstage: groupValue != kRemoteImageQualityCustom,
         child: customImageQualitySetting(),
       )
-    ]);
-  }
-
-  Widget trackpadSpeed(BuildContext context) {
-    final initSpeed = (int.tryParse(
-            bind.mainGetUserDefaultOption(key: kKeyTrackpadSpeed)) ??
-        kDefaultTrackpadSpeed);
-    final curSpeed = SimpleWrapper(initSpeed);
-    void onDebouncer(int v) {
-      bind.mainSetUserDefaultOption(
-          key: kKeyTrackpadSpeed, value: v.toString());
-      // It's better to notify all sessions that the default speed is changed.
-      // But it may also be ok to take effect in the next connection.
-    }
-
-    return _Card(title: 'Default trackpad speed', children: [
-      TrackpadSpeedWidget(
-        value: curSpeed,
-        onDebouncer: onDebouncer,
-      ),
     ]);
   }
 
