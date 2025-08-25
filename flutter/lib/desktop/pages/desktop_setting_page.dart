@@ -51,16 +51,18 @@ class _TabInfo {
 
 enum SettingsTabKey {
   general,
-  display,
-  account,
+  safety,
 }
 
 class DesktopSettingPage extends StatefulWidget {
   final SettingsTabKey initialTabkey;
   static final List<SettingsTabKey> tabKeys = [
     SettingsTabKey.general,
-    if (!bind.isIncomingOnly()) SettingsTabKey.display,
-    if (!bind.isDisableAccount()) SettingsTabKey.account,
+    if (!isWeb &&
+        !bind.isOutgoingOnly() &&
+        !bind.isDisableSettings() &&
+        bind.mainGetBuildinOption(key: kOptionHideSecuritySetting) != 'Y')
+      SettingsTabKey.safety,
   ];
 
   DesktopSettingPage({Key? key, required this.initialTabkey}) : super(key: key);
@@ -164,13 +166,9 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
           settingTabs.add(_TabInfo(
               tab, 'General', Icons.settings_outlined, Icons.settings));
           break;
-        case SettingsTabKey.display:
-          settingTabs.add(_TabInfo(tab, 'Display',
-              Icons.desktop_windows_outlined, Icons.desktop_windows));
-          break;
-        case SettingsTabKey.account:
-          settingTabs.add(
-              _TabInfo(tab, 'Account', Icons.person_outline, Icons.person));
+        case SettingsTabKey.safety:
+          settingTabs.add(_TabInfo(tab, 'Security',
+              Icons.enhanced_encryption_outlined, Icons.enhanced_encryption));
           break;
       }
     }
@@ -184,11 +182,8 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
         case SettingsTabKey.general:
           children.add(const _General());
           break;
-        case SettingsTabKey.display:
-          children.add(const _Display());
-          break;
-        case SettingsTabKey.account:
-          children.add(const _Account());
+        case SettingsTabKey.safety:
+          children.add(const _Safety());
           break;
       }
     }
@@ -360,12 +355,7 @@ class _GeneralState extends State<_General> {
       controller: scrollController,
       children: [
         if (!isWeb) service(),
-        theme(),
-        // _Card(title: 'Language', children: [language()]),
-        if (!isWeb) hwcodec(),
-        if (!isWeb) audio(context),
-        if (!isWeb) record(context),
-        if (!isWeb) WaylandCard()
+        if (!isWeb) record(context)
       ],
     ).marginOnly(bottom: _kListViewBottomMargin);
   }
@@ -379,16 +369,16 @@ class _GeneralState extends State<_General> {
 
     final isOptFixed = isOptionFixed(kCommConfKeyTheme);
     return _Card(title: 'Theme', children: [
-      // _Radio<String>(context,
-      //     value: 'light',
-      //     groupValue: current,
-      //     label: 'Light',
-      //     onChanged: isOptFixed ? null : onChanged),
-      // _Radio<String>(context,
-      //     value: 'dark',
-      //     groupValue: current,
-      //     label: 'Dark',
-      //     onChanged: isOptFixed ? null : onChanged),
+      _Radio<String>(context,
+          value: 'light',
+          groupValue: current,
+          label: 'Light',
+          onChanged: isOptFixed ? null : onChanged),
+      _Radio<String>(context,
+          value: 'dark',
+          groupValue: current,
+          label: 'Dark',
+          onChanged: isOptFixed ? null : onChanged),
       _Radio<String>(context,
           value: 'system',
           groupValue: current,
@@ -587,10 +577,9 @@ class _GeneralState extends State<_General> {
       bool root_dir_exists = map['root_dir_exists']!;
       bool user_dir_exists = map['user_dir_exists']!;
       return _Card(title: 'Recording', children: [
-        if (!bind.isIncomingOnly())
-          _OptionCheckBox(context, 'Automatically record outgoing sessions',
-              kOptionAllowAutoRecordOutgoing,
-              isServer: false),
+        if (!bind.isOutgoingOnly())
+          _OptionCheckBox(context, 'Automatically record incoming sessions',
+              kOptionAllowAutoRecordIncoming),
         if (showRootDir && !bind.isOutgoingOnly())
           Row(
             children: [
@@ -726,10 +715,6 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
               block: locked,
               child: Column(children: [
                 permissions(context),
-                password(context),
-                _Card(title: '2FA', children: [tfa()]),
-                _Card(title: 'ID', children: [changeId()]),
-                more(context),
               ]),
             ),
           ],
@@ -917,6 +902,7 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
             _OptionCheckBox(
                 context, 'Enable keyboard/mouse', kOptionEnableKeyboard,
                 enabled: enabled, fakeValue: fakeValue),
+            if (isWindows)
             _OptionCheckBox(context, 'Enable clipboard', kOptionEnableClipboard,
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(
@@ -925,16 +911,10 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
             _OptionCheckBox(context, 'Enable audio', kOptionEnableAudio,
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(
-                context, 'Enable TCP tunneling', kOptionEnableTunnel,
-                enabled: enabled, fakeValue: fakeValue),
-            _OptionCheckBox(
                 context, 'Enable remote restart', kOptionEnableRemoteRestart,
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(
                 context, 'Enable recording session', kOptionEnableRecordSession,
-                enabled: enabled, fakeValue: fakeValue),
-            _OptionCheckBox(context, 'Enable remote configuration modification',
-                kOptionAllowRemoteConfigModification,
                 enabled: enabled, fakeValue: fakeValue),
           ],
         ),
@@ -1060,8 +1040,6 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
             if (usePassword)
               _SubButton('Set permanent password', setPasswordDialog,
                   permEnabled && !locked),
-            // if (usePassword)
-            //   hide_cm(!locked).marginOnly(left: _kContentHSubMargin - 6),
             if (usePassword) radios[2],
           ]);
         })));
@@ -1828,7 +1806,6 @@ class _PluginState extends State<_Plugin> {
             }));
   }
 }
-
 
 class _About extends StatefulWidget {
   const _About({Key? key}) : super(key: key);
