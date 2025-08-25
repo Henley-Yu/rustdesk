@@ -51,18 +51,16 @@ class _TabInfo {
 
 enum SettingsTabKey {
   general,
-  safety,
+  display,
+  account,
 }
 
 class DesktopSettingPage extends StatefulWidget {
   final SettingsTabKey initialTabkey;
   static final List<SettingsTabKey> tabKeys = [
     SettingsTabKey.general,
-    if (!isWeb &&
-        !bind.isOutgoingOnly() &&
-        !bind.isDisableSettings() &&
-        bind.mainGetBuildinOption(key: kOptionHideSecuritySetting) != 'Y')
-      SettingsTabKey.safety,
+    if (!bind.isIncomingOnly()) SettingsTabKey.display,
+    if (!bind.isDisableAccount()) SettingsTabKey.account,
   ];
 
   DesktopSettingPage({Key? key, required this.initialTabkey}) : super(key: key);
@@ -166,9 +164,13 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
           settingTabs.add(_TabInfo(
               tab, 'General', Icons.settings_outlined, Icons.settings));
           break;
-        case SettingsTabKey.safety:
-          settingTabs.add(_TabInfo(tab, 'Security',
-              Icons.enhanced_encryption_outlined, Icons.enhanced_encryption));
+        case SettingsTabKey.display:
+          settingTabs.add(_TabInfo(tab, 'Display',
+              Icons.desktop_windows_outlined, Icons.desktop_windows));
+          break;
+        case SettingsTabKey.account:
+          settingTabs.add(
+              _TabInfo(tab, 'Account', Icons.person_outline, Icons.person));
           break;
       }
     }
@@ -182,8 +184,11 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
         case SettingsTabKey.general:
           children.add(const _General());
           break;
-        case SettingsTabKey.safety:
-          children.add(const _Safety());
+        case SettingsTabKey.display:
+          children.add(const _Display());
+          break;
+        case SettingsTabKey.account:
+          children.add(const _Account());
           break;
       }
     }
@@ -355,7 +360,12 @@ class _GeneralState extends State<_General> {
       controller: scrollController,
       children: [
         if (!isWeb) service(),
-        if (!isWeb) record(context)
+        theme(),
+        // _Card(title: 'Language', children: [language()]),
+        if (!isWeb) hwcodec(),
+        if (!isWeb) audio(context),
+        if (!isWeb) record(context),
+        if (!isWeb) WaylandCard()
       ],
     ).marginOnly(bottom: _kListViewBottomMargin);
   }
@@ -369,16 +379,16 @@ class _GeneralState extends State<_General> {
 
     final isOptFixed = isOptionFixed(kCommConfKeyTheme);
     return _Card(title: 'Theme', children: [
-      _Radio<String>(context,
-          value: 'light',
-          groupValue: current,
-          label: 'Light',
-          onChanged: isOptFixed ? null : onChanged),
-      _Radio<String>(context,
-          value: 'dark',
-          groupValue: current,
-          label: 'Dark',
-          onChanged: isOptFixed ? null : onChanged),
+      // _Radio<String>(context,
+      //     value: 'light',
+      //     groupValue: current,
+      //     label: 'Light',
+      //     onChanged: isOptFixed ? null : onChanged),
+      // _Radio<String>(context,
+      //     value: 'dark',
+      //     groupValue: current,
+      //     label: 'Dark',
+      //     onChanged: isOptFixed ? null : onChanged),
       _Radio<String>(context,
           value: 'system',
           groupValue: current,
@@ -577,9 +587,10 @@ class _GeneralState extends State<_General> {
       bool root_dir_exists = map['root_dir_exists']!;
       bool user_dir_exists = map['user_dir_exists']!;
       return _Card(title: 'Recording', children: [
-        if (!bind.isOutgoingOnly())
-          _OptionCheckBox(context, 'Automatically record incoming sessions',
-              kOptionAllowAutoRecordIncoming),
+        if (!bind.isIncomingOnly())
+          _OptionCheckBox(context, 'Automatically record outgoing sessions',
+              kOptionAllowAutoRecordOutgoing,
+              isServer: false),
         if (showRootDir && !bind.isOutgoingOnly())
           Row(
             children: [
@@ -715,6 +726,10 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
               block: locked,
               child: Column(children: [
                 permissions(context),
+                password(context),
+                _Card(title: '2FA', children: [tfa()]),
+                _Card(title: 'ID', children: [changeId()]),
+                more(context),
               ]),
             ),
           ],
@@ -903,6 +918,9 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                 context, 'Enable keyboard/mouse', kOptionEnableKeyboard,
                 enabled: enabled, fakeValue: fakeValue),
             if (isWindows)
+              _OptionCheckBox(
+                  context, 'Enable remote printer', kOptionEnableRemotePrinter,
+                  enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(context, 'Enable clipboard', kOptionEnableClipboard,
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(
@@ -911,10 +929,16 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
             _OptionCheckBox(context, 'Enable audio', kOptionEnableAudio,
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(
+                context, 'Enable TCP tunneling', kOptionEnableTunnel,
+                enabled: enabled, fakeValue: fakeValue),
+            _OptionCheckBox(
                 context, 'Enable remote restart', kOptionEnableRemoteRestart,
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(
                 context, 'Enable recording session', kOptionEnableRecordSession,
+                enabled: enabled, fakeValue: fakeValue),
+            _OptionCheckBox(context, 'Enable remote configuration modification',
+                kOptionAllowRemoteConfigModification,
                 enabled: enabled, fakeValue: fakeValue),
           ],
         ),
@@ -1040,6 +1064,8 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
             if (usePassword)
               _SubButton('Set permanent password', setPasswordDialog,
                   permEnabled && !locked),
+            // if (usePassword)
+            //   hide_cm(!locked).marginOnly(left: _kContentHSubMargin - 6),
             if (usePassword) radios[2],
           ]);
         })));
@@ -1804,6 +1830,153 @@ class _PluginState extends State<_Plugin> {
                   ? loginDialog()
                   : logOutConfirmDialog()
             }));
+  }
+}
+
+class _Printer extends StatefulWidget {
+  const _Printer({super.key});
+
+  @override
+  State<_Printer> createState() => __PrinterState();
+}
+
+class __PrinterState extends State<_Printer> {
+  @override
+  Widget build(BuildContext context) {
+    final scrollController = ScrollController();
+    return ListView(controller: scrollController, children: [
+      outgoing(context),
+      incomming(context),
+    ]).marginOnly(bottom: _kListViewBottomMargin);
+  }
+
+  Widget outgoing(BuildContext context) {
+    final isSupportPrinterDriver =
+        bind.mainGetCommonSync(key: 'is-support-printer-driver') == 'true';
+
+    Widget tipOsNotSupported() {
+      return Align(
+        alignment: Alignment.topLeft,
+        child: Text(translate('printer-os-requirement-tip')),
+      ).marginOnly(left: _kCardLeftMargin);
+    }
+
+    Widget tipClientNotInstalled() {
+      return Align(
+        alignment: Alignment.topLeft,
+        child:
+            Text(translate('printer-requires-installed-{$appName}-client-tip')),
+      ).marginOnly(left: _kCardLeftMargin);
+    }
+
+    Widget tipPrinterNotInstalled() {
+      final failedMsg = ''.obs;
+      platformFFI.registerEventHandler(
+          'install-printer-res', 'install-printer-res', (evt) async {
+        if (evt['success'] as bool) {
+          setState(() {});
+        } else {
+          failedMsg.value = evt['msg'] as String;
+        }
+      }, replace: true);
+      return Column(children: [
+        Obx(
+          () => failedMsg.value.isNotEmpty
+              ? Offstage()
+              : Align(
+                  alignment: Alignment.topLeft,
+                  child: Text(translate('printer-{$appName}-not-installed-tip'))
+                      .marginOnly(bottom: 10.0),
+                ),
+        ),
+        Obx(
+          () => failedMsg.value.isEmpty
+              ? Offstage()
+              : Align(
+                  alignment: Alignment.topLeft,
+                  child: Text(failedMsg.value,
+                          style: DefaultTextStyle.of(context)
+                              .style
+                              .copyWith(color: Colors.red))
+                      .marginOnly(bottom: 10.0)),
+        ),
+        _Button('Install {$appName} Printer', () {
+          failedMsg.value = '';
+          bind.mainSetCommon(key: 'install-printer', value: '');
+        })
+      ]).marginOnly(left: _kCardLeftMargin, bottom: 2.0);
+    }
+
+    Widget tipReady() {
+      return Align(
+        alignment: Alignment.topLeft,
+        child: Text(translate('printer-{$appName}-ready-tip')),
+      ).marginOnly(left: _kCardLeftMargin);
+    }
+
+    final installed = bind.mainIsInstalled();
+    // `is-printer-installed` may fail, but it's rare case.
+    // Add additional error message here if it's really needed.
+    final isPrinterInstalled =
+        bind.mainGetCommonSync(key: 'is-printer-installed') == 'true';
+
+    final List<Widget> children = [];
+    if (!isSupportPrinterDriver) {
+      children.add(tipOsNotSupported());
+    } else {
+      children.addAll([
+        if (!installed) tipClientNotInstalled(),
+        if (installed && !isPrinterInstalled) tipPrinterNotInstalled(),
+        if (installed && isPrinterInstalled) tipReady()
+      ]);
+    }
+    return _Card(title: 'Outgoing Print Jobs', children: children);
+  }
+
+  Widget incomming(BuildContext context) {
+    onRadioChanged(String value) async {
+      await bind.mainSetLocalOption(
+          key: kKeyPrinterIncommingJobAction, value: value);
+      setState(() {});
+    }
+
+    PrinterOptions printerOptions = PrinterOptions.load();
+    return _Card(title: 'Incomming Print Jobs', children: [
+      _Radio(context,
+          value: kValuePrinterIncomingJobDismiss,
+          groupValue: printerOptions.action,
+          label: 'Dismiss',
+          onChanged: onRadioChanged),
+      _Radio(context,
+          value: kValuePrinterIncomingJobDefault,
+          groupValue: printerOptions.action,
+          label: 'use-the-default-printer-tip',
+          onChanged: onRadioChanged),
+      _Radio(context,
+          value: kValuePrinterIncomingJobSelected,
+          groupValue: printerOptions.action,
+          label: 'use-the-selected-printer-tip',
+          onChanged: onRadioChanged),
+      if (printerOptions.printerNames.isNotEmpty)
+        ComboBox(
+          initialKey: printerOptions.printerName,
+          keys: printerOptions.printerNames,
+          values: printerOptions.printerNames,
+          enabled: printerOptions.action == kValuePrinterIncomingJobSelected,
+          onChanged: (value) async {
+            await bind.mainSetLocalOption(
+                key: kKeyPrinterSelected, value: value);
+            setState(() {});
+          },
+        ).marginOnly(left: 10),
+      _OptionCheckBox(
+        context,
+        'auto-print-tip',
+        kKeyPrinterAllowAutoPrint,
+        isServer: false,
+        enabled: printerOptions.action != kValuePrinterIncomingJobDismiss,
+      )
+    ]);
   }
 }
 
