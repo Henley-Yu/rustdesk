@@ -92,7 +92,6 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
   final isDefaultConn = ffi.connType == ConnType.defaultConn;
 
   List<TTextMenu> v = [];
-
   // paste
   if (isDefaultConn &&
       pi.platform != kPeerPlatformAndroid &&
@@ -324,7 +323,119 @@ Future<List<TRadioMenu<String>>> toolbarCodec(
   ];
 }
 
+Future<List<TToggleMenu>> toolbarCursor(
+    BuildContext context, String id, FFI ffi) async {
+  List<TToggleMenu> v = [];
+  final ffiModel = ffi.ffiModel;
+  final pi = ffiModel.pi;
+  final sessionId = ffi.sessionId;
 
+  // show remote cursor
+  if (pi.platform != kPeerPlatformAndroid &&
+      !ffi.canvasModel.cursorEmbedded &&
+      !pi.isWayland) {
+    final state = ShowRemoteCursorState.find(id);
+    final lockState = ShowRemoteCursorLockState.find(id);
+    final enabled = !ffiModel.viewOnly;
+    final option = 'show-remote-cursor';
+    if (pi.currentDisplay == kAllDisplayValue ||
+        bind.sessionIsMultiUiSession(sessionId: sessionId)) {
+      lockState.value = false;
+    }
+    v.add(TToggleMenu(
+        child: Text(translate('Show remote cursor')),
+        value: state.value,
+        onChanged: enabled && !lockState.value
+            ? (value) async {
+                if (value == null) return;
+                await bind.sessionToggleOption(
+                    sessionId: sessionId, value: option);
+                state.value = bind.sessionGetToggleOptionSync(
+                    sessionId: sessionId, arg: option);
+              }
+            : null));
+  }
+  // follow remote cursor
+  if (pi.platform != kPeerPlatformAndroid &&
+      !ffi.canvasModel.cursorEmbedded &&
+      !pi.isWayland &&
+      versionCmp(pi.version, "1.2.4") >= 0 &&
+      pi.displays.length > 1 &&
+      pi.currentDisplay != kAllDisplayValue &&
+      !bind.sessionIsMultiUiSession(sessionId: sessionId)) {
+    final option = 'follow-remote-cursor';
+    final value =
+        bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
+    final showCursorOption = 'show-remote-cursor';
+    final showCursorState = ShowRemoteCursorState.find(id);
+    final showCursorLockState = ShowRemoteCursorLockState.find(id);
+    final showCursorEnabled = bind.sessionGetToggleOptionSync(
+        sessionId: sessionId, arg: showCursorOption);
+    showCursorLockState.value = value;
+    if (value && !showCursorEnabled) {
+      await bind.sessionToggleOption(
+          sessionId: sessionId, value: showCursorOption);
+      showCursorState.value = bind.sessionGetToggleOptionSync(
+          sessionId: sessionId, arg: showCursorOption);
+    }
+    v.add(TToggleMenu(
+        child: Text(translate('Follow remote cursor')),
+        value: value,
+        onChanged: (value) async {
+          if (value == null) return;
+          await bind.sessionToggleOption(sessionId: sessionId, value: option);
+          value = bind.sessionGetToggleOptionSync(
+              sessionId: sessionId, arg: option);
+          showCursorLockState.value = value;
+          if (!showCursorEnabled) {
+            await bind.sessionToggleOption(
+                sessionId: sessionId, value: showCursorOption);
+            showCursorState.value = bind.sessionGetToggleOptionSync(
+                sessionId: sessionId, arg: showCursorOption);
+          }
+        }));
+  }
+  // follow remote window focus
+  if (pi.platform != kPeerPlatformAndroid &&
+      !ffi.canvasModel.cursorEmbedded &&
+      !pi.isWayland &&
+      versionCmp(pi.version, "1.2.4") >= 0 &&
+      pi.displays.length > 1 &&
+      pi.currentDisplay != kAllDisplayValue &&
+      !bind.sessionIsMultiUiSession(sessionId: sessionId)) {
+    final option = 'follow-remote-window';
+    final value =
+        bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
+    v.add(TToggleMenu(
+        child: Text(translate('Follow remote window focus')),
+        value: value,
+        onChanged: (value) async {
+          if (value == null) return;
+          await bind.sessionToggleOption(sessionId: sessionId, value: option);
+          value = bind.sessionGetToggleOptionSync(
+              sessionId: sessionId, arg: option);
+        }));
+  }
+  // zoom cursor
+  final viewStyle = await bind.sessionGetViewStyle(sessionId: sessionId) ?? '';
+  if (!isMobile &&
+      pi.platform != kPeerPlatformAndroid &&
+      viewStyle != kRemoteViewStyleOriginal) {
+    final option = 'zoom-cursor';
+    final peerState = PeerBoolOption.find(id, option);
+    v.add(TToggleMenu(
+      child: Text(translate('Zoom cursor')),
+      value: peerState.value,
+      onChanged: (value) async {
+        if (value == null) return;
+        await bind.sessionToggleOption(sessionId: sessionId, value: option);
+        peerState.value =
+            bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
+      },
+    ));
+  }
+  return v;
+}
 
 Future<List<TToggleMenu>> toolbarDisplayToggle(
     BuildContext context, String id, FFI ffi) async {
@@ -434,12 +545,43 @@ Future<List<TToggleMenu>> toolbarDisplayToggle(
         child: Text(translate('Use all my displays for the remote session'))));
   }
 
+  // 444
+  final codec_format = ffi.qualityMonitorModel.data.codecFormat;
+  if (versionCmp(pi.version, "1.2.4") >= 0 &&
+      (codec_format == "AV1" || codec_format == "VP9")) {
+    final option = 'i444';
+    final value =
+        bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
+    v.add(TToggleMenu(
+        value: value,
+        onChanged: (value) async {
+          if (value == null) return;
+          await bind.sessionToggleOption(sessionId: sessionId, value: option);
+          bind.sessionChangePreferCodec(sessionId: sessionId);
+        },
+        child: Text(translate('True color (4:4:4)'))));
+  }
+
   if (isDefaultConn && isMobile) {
     v.addAll(toolbarKeyboardToggles(ffi));
   }
 
+  // view mode (mobile only, desktop is in keyboard menu)
+  if (isDefaultConn && isMobile && versionCmp(pi.version, '1.2.0') >= 0) {
+    v.add(TToggleMenu(
+        value: ffiModel.viewOnly,
+        onChanged: (value) async {
+          if (value == null) return;
+          await bind.sessionToggleOption(
+              sessionId: ffi.sessionId, value: kOptionToggleViewOnly);
+          ffiModel.setViewOnly(id, value);
+        },
+        child: Text(translate('View Mode'))));
+  }
   return v;
 }
+
+var togglePrivacyModeTime = DateTime.now().subtract(const Duration(hours: 1));
 
 List<TToggleMenu> toolbarKeyboardToggles(FFI ffi) {
   final ffiModel = ffi.ffiModel;
@@ -467,7 +609,6 @@ List<TToggleMenu> toolbarKeyboardToggles(FFI ffi) {
   }
   return v;
 }
-
 
 bool showVirtualDisplayMenu(FFI ffi) {
   if (ffi.ffiModel.pi.platform != kPeerPlatformWindows) {
