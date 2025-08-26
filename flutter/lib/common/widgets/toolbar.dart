@@ -465,6 +465,8 @@ List<TToggleMenu> toolbarKeyboardToggles(FFI ffi) {
         onChanged: enabled ? onChanged : null,
         child: Text(translate('Swap control-command key'))));
   }
+  return v;
+}
 
 
 bool showVirtualDisplayMenu(FFI ffi) {
