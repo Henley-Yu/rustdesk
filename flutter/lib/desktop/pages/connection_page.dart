@@ -296,6 +296,8 @@ class _ConnectionPageState extends State<ConnectionPage>
               ],
             ).marginOnly(top: 22),
             SizedBox(height: 12),
+            Divider().paddingOnly(right: 12),
+            Expanded(child: PeerTabPage()),
           ],
         ).paddingOnly(left: 12.0)),
         if (!isOutgoingOnly) const Divider(height: 1),
@@ -306,7 +308,7 @@ class _ConnectionPageState extends State<ConnectionPage>
 
   /// Callback for the connect button.
   /// Connects to the selected peer.
-  void onConnect({bool isFileTransfer = false}) {
+  void onConnect({bool isFileTransfer = false, bool isViewCamera = false}) {
     var id = _idController.id;
     connect(context, id,
         isFileTransfer: isFileTransfer);
@@ -530,7 +532,7 @@ class _ConnectionPageState extends State<ConnectionPage>
                               (
                                 'Transfer file',
                                 () => onConnect(isFileTransfer: true)
-                              )
+                              ),
                             ]
                                 .map((e) => MenuEntryButton<String>(
                                       childBuilder: (TextStyle? style) => Text(
