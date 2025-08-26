@@ -219,13 +219,10 @@ List<(String, String)> otherDefaultSettings() {
       ('show_monitors_tip', kKeyShowMonitorsToolbar),
     if ((isDesktop || isWebDesktop))
       ('Collapse toolbar', kOptionCollapseToolbar),
-    ('Show quality monitor', kOptionShowQualityMonitor),
     ('Mute', kOptionDisableAudio),
     if (isDesktop) ('Enable file copy and paste', kOptionEnableFileCopyPaste),
     ('Disable clipboard', kOptionDisableClipboard),
     ('Lock after session end', kOptionLockAfterSessionEnd),
-    ('Privacy mode', kOptionPrivacyMode),
-    if (isMobile) ('Touch mode', kOptionTouchMode),
     ('True color (4:4:4)', kOptionI444),
     if (isDesktop)
       (

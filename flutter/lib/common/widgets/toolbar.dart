@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -16,7 +15,7 @@ bool isEditOsPassword = false;
 
 class TTextMenu {
   final Widget child;
-  final VoidCallback? onPressed;
+  final VoidCallback onPressed;
   Widget? trailingIcon;
   bool divider;
   TTextMenu(
@@ -104,35 +103,6 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
               showRequestElevationDialog(sessionId, ffi.dialogManager)),
     );
   }
-  // osAccount / osPassword
-  if (isDefaultConn && perms['keyboard'] != false) {
-    v.add(
-      TTextMenu(
-        child: Row(children: [
-          Text(translate(pi.isHeadless ? 'OS Account' : 'OS Password')),
-        ]),
-        trailingIcon: Transform.scale(
-          scale: (isDesktop || isWebDesktop) ? 0.8 : 1,
-          child: IconButton(
-            onPressed: () {
-              if (isMobile && Navigator.canPop(context)) {
-                Navigator.pop(context);
-              }
-              if (pi.isHeadless) {
-                showSetOSAccount(sessionId, ffi.dialogManager);
-              } else {
-                handleOsPasswordEditIcon(sessionId, ffi.dialogManager);
-              }
-            },
-            icon: Icon(Icons.edit, color: isMobile ? MyTheme.accent : null),
-          ),
-        ),
-        onPressed: () => pi.isHeadless
-            ? showSetOSAccount(sessionId, ffi.dialogManager)
-            : handleOsPasswordAction(sessionId, ffi.dialogManager),
-      ),
-    );
-  }
   // paste
   if (isDefaultConn &&
       pi.platform != kPeerPlatformAndroid &&
@@ -172,14 +142,6 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
       TTextMenu(
           child: Text(translate('Transfer file')),
           onPressed: () => connectWithToken(isFileTransfer: true)),
-    );
-  }
-  // tcpTunneling
-  if (isDefaultConn && isDesktop) {
-    v.add(
-      TTextMenu(
-          child: Text(translate('TCP tunneling')),
-          onPressed: () => connectWithToken(isTcpTunneling: true)),
     );
   }
   // note
@@ -229,6 +191,7 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
           onPressed: () => bind.sessionLockScreen(sessionId: sessionId)),
     );
   }
+
   // refresh
   if (pi.version.isNotEmpty) {
     v.add(TTextMenu(
@@ -256,41 +219,6 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
           ],
         ),
         onPressed: () => ffi.recordingModel.toggle()));
-  }
-
-  // to-do:
-  // 1. Web desktop
-  // 2. Mobile, copy the image to the clipboard
-  if (isDesktop) {
-    final isScreenshotSupported = bind.sessionGetCommonSync(
-        sessionId: sessionId, key: 'is_screenshot_supported', param: '');
-    if ('true' == isScreenshotSupported) {
-      v.add(TTextMenu(
-        child: Text(ffi.ffiModel.timerScreenshot != null
-            ? '${translate('Taking screenshot')} ...'
-            : translate('Take screenshot')),
-        onPressed: ffi.ffiModel.timerScreenshot != null
-            ? null
-            : () {
-                if (pi.currentDisplay == kAllDisplayValue) {
-                  msgBox(
-                      sessionId,
-                      'custom-nook-nocancel-hasclose-info',
-                      'Take screenshot',
-                      'screenshot-merged-screen-not-supported-tip',
-                      '',
-                      ffi.dialogManager);
-                } else {
-                  bind.sessionTakeScreenshot(
-                      sessionId: sessionId, display: pi.currentDisplay);
-                  ffi.ffiModel.timerScreenshot =
-                      Timer(Duration(seconds: 30), () {
-                    ffi.ffiModel.timerScreenshot = null;
-                  });
-                }
-              },
-      ));
-    }
   }
   // fingerprint
   if (!(isDesktop || isWebDesktop)) {
@@ -591,23 +519,6 @@ Future<List<TToggleMenu>> toolbarDisplayToggle(
               }
             : null,
         child: Text(translate('Enable file copy and paste'))));
-  }
-  // disable clipboard
-  if (isDefaultConn && ffiModel.keyboard && perms['clipboard'] != false) {
-    final enabled = !ffiModel.viewOnly;
-    final option = 'disable-clipboard';
-    var value =
-        bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
-    if (ffiModel.viewOnly) value = true;
-    v.add(TToggleMenu(
-        value: value,
-        onChanged: enabled
-            ? (value) {
-                if (value == null) return;
-                bind.sessionToggleOption(sessionId: sessionId, value: option);
-              }
-            : null,
-        child: Text(translate('Disable clipboard'))));
   }
   // lock after session end
   if (isDefaultConn && ffiModel.keyboard && !ffiModel.isPeerAndroid) {
