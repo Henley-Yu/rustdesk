@@ -223,7 +223,6 @@ List<(String, String)> otherDefaultSettings() {
     if (isDesktop) ('Enable file copy and paste', kOptionEnableFileCopyPaste),
     ('Disable clipboard', kOptionDisableClipboard),
     ('Lock after session end', kOptionLockAfterSessionEnd),
-    ('True color (4:4:4)', kOptionI444),
     if (isDesktop)
       (
         'Show displays as individual windows',
