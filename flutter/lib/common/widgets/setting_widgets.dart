@@ -219,9 +219,12 @@ List<(String, String)> otherDefaultSettings() {
       ('show_monitors_tip', kKeyShowMonitorsToolbar),
     if ((isDesktop || isWebDesktop))
       ('Collapse toolbar', kOptionCollapseToolbar),
+    ('Show remote cursor', kOptionShowRemoteCursor),
+    ('Follow remote cursor', kOptionFollowRemoteCursor),
+    ('Follow remote window focus', kOptionFollowRemoteWindow),
     ('Mute', kOptionDisableAudio),
+    ('Show quality monitor', kOptionShowQualityMonitor),
     if (isDesktop) ('Enable file copy and paste', kOptionEnableFileCopyPaste),
-    ('Disable clipboard', kOptionDisableClipboard),
     ('Lock after session end', kOptionLockAfterSessionEnd),
     if (isDesktop)
       (

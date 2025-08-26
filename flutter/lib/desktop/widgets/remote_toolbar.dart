@@ -1179,6 +1179,25 @@ class _DisplayMenuState extends State<_DisplayMenu> {
         });
   }
 
+  cursorToggles() {
+    return futureBuilder(
+        future: toolbarCursor(context, id, ffi),
+        hasData: (data) {
+          final v = data as List<TToggleMenu>;
+          if (v.isEmpty) return Offstage();
+          return Column(children: [
+            Divider(),
+            ...v
+                .map((e) => CkbMenuButton(
+                value: e.value,
+                onChanged: e.onChanged,
+                child: e.child,
+                ffi: ffi))
+                .toList(),
+          ]);
+        });
+  }
+
   toggles() {
     return futureBuilder(
         future: toolbarDisplayToggle(context, id, ffi),
