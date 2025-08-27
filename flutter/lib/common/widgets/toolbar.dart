@@ -92,6 +92,46 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
   final isDefaultConn = ffi.connType == ConnType.defaultConn;
 
   List<TTextMenu> v = [];
+  // elevation
+  if (isDefaultConn &&
+      perms['keyboard'] != false &&
+      ffi.elevationModel.showRequestMenu) {
+    v.add(
+      TTextMenu(
+          child: Text(translate('Request Elevation')),
+          onPressed: () =>
+              showRequestElevationDialog(sessionId, ffi.dialogManager)),
+    );
+  }
+  // osAccount / osPassword
+  if (isDefaultConn && perms['keyboard'] != false) {
+    v.add(
+      TTextMenu(
+        child: Row(children: [
+          Text(translate(pi.isHeadless ? 'OS Account' : 'OS Password')),
+        ]),
+        trailingIcon: Transform.scale(
+          scale: (isDesktop || isWebDesktop) ? 0.8 : 1,
+          child: IconButton(
+            onPressed: () {
+              if (isMobile && Navigator.canPop(context)) {
+                Navigator.pop(context);
+              }
+              if (pi.isHeadless) {
+                showSetOSAccount(sessionId, ffi.dialogManager);
+              } else {
+                handleOsPasswordEditIcon(sessionId, ffi.dialogManager);
+              }
+            },
+            icon: Icon(Icons.edit, color: isMobile ? MyTheme.accent : null),
+          ),
+        ),
+        onPressed: () => pi.isHeadless
+            ? showSetOSAccount(sessionId, ffi.dialogManager)
+            : handleOsPasswordAction(sessionId, ffi.dialogManager),
+      ),
+    );
+  }
   // paste
   if (isDefaultConn &&
       pi.platform != kPeerPlatformAndroid &&
@@ -105,6 +145,12 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
                 sessionId: sessionId, value: data.text ?? "");
           }
         }));
+  }
+  // reset canvas
+  if (isDefaultConn && isMobile) {
+    v.add(TTextMenu(
+        child: Text(translate('Reset canvas')),
+        onPressed: () => ffi.cursorModel.reset()));
   }
 
   connectWithToken(
@@ -125,6 +171,22 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
       TTextMenu(
           child: Text(translate('Transfer file')),
           onPressed: () => connectWithToken(isFileTransfer: true)),
+    );
+  }
+  // viewCamera
+  if (isDefaultConn && isDesktop) {
+    v.add(
+      TTextMenu(
+          child: Text(translate('View camera')),
+          onPressed: () => connectWithToken(isViewCamera: true)),
+    );
+  }
+  // tcpTunneling
+  if (isDefaultConn && isDesktop) {
+    v.add(
+      TTextMenu(
+          child: Text(translate('TCP tunneling')),
+          onPressed: () => connectWithToken(isTcpTunneling: true)),
     );
   }
   // note
@@ -174,7 +236,36 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
           onPressed: () => bind.sessionLockScreen(sessionId: sessionId)),
     );
   }
-
+  // blockUserInput
+  if (isDefaultConn &&
+      ffi.ffiModel.keyboard &&
+      ffi.ffiModel.permissions['block_input'] != false &&
+      pi.platform == kPeerPlatformWindows) // privacy-mode != true ??
+  {
+    v.add(TTextMenu(
+        child: Obx(() => Text(translate(
+            '${BlockInputState.find(id).value ? 'Unb' : 'B'}lock user input'))),
+        onPressed: () {
+          RxBool blockInput = BlockInputState.find(id);
+          bind.sessionToggleOption(
+              sessionId: sessionId,
+              value: '${blockInput.value ? 'un' : ''}block-input');
+          blockInput.value = !blockInput.value;
+        }));
+  }
+  // switchSides
+  if (isDefaultConn &&
+      isDesktop &&
+      ffiModel.keyboard &&
+      pi.platform != kPeerPlatformAndroid &&
+      pi.platform != kPeerPlatformMacOS &&
+      versionCmp(pi.version, '1.2.0') >= 0 &&
+      bind.peerGetSessionsCount(id: id, connType: ffi.connType.index) == 1) {
+    v.add(TTextMenu(
+        child: Text(translate('Switch Sides')),
+        onPressed: () =>
+            showConfirmSwitchSidesDialog(sessionId, id, ffi.dialogManager)));
+  }
   // refresh
   if (pi.version.isNotEmpty) {
     v.add(TTextMenu(
@@ -202,6 +293,13 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
           ],
         ),
         onPressed: () => ffi.recordingModel.toggle()));
+  }
+  // fingerprint
+  if (!(isDesktop || isWebDesktop)) {
+    v.add(TTextMenu(
+      child: Text(translate('Copy Fingerprint')),
+      onPressed: () => onCopyFingerprint(FingerprintState.find(id).value),
+    ));
   }
   return v;
 }
@@ -496,25 +594,23 @@ Future<List<TToggleMenu>> toolbarDisplayToggle(
             : null,
         child: Text(translate('Enable file copy and paste'))));
   }
-
   // disable clipboard
   if (isDefaultConn && ffiModel.keyboard && perms['clipboard'] != false) {
     final enabled = !ffiModel.viewOnly;
     final option = 'disable-clipboard';
     var value =
-    bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
+        bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
     if (ffiModel.viewOnly) value = true;
     v.add(TToggleMenu(
         value: value,
         onChanged: enabled
             ? (value) {
-          if (value == null) return;
-          bind.sessionToggleOption(sessionId: sessionId, value: option);
-        }
+                if (value == null) return;
+                bind.sessionToggleOption(sessionId: sessionId, value: option);
+              }
             : null,
         child: Text(translate('Disable clipboard'))));
   }
-
   // lock after session end
   if (isDefaultConn && ffiModel.keyboard && !ffiModel.isPeerAndroid) {
     final enabled = !ffiModel.viewOnly;
@@ -614,28 +710,28 @@ List<TToggleMenu> toolbarPrivacyMode(
         value: privacyModeState.isNotEmpty,
         onChanged: enabled
             ? (value) {
-          if (value == null) return;
-          if (ffiModel.pi.currentDisplay != 0 &&
-              ffiModel.pi.currentDisplay != kAllDisplayValue) {
-            msgBox(
-                sessionId,
-                'custom-nook-nocancel-hasclose',
-                'info',
-                'Please switch to Display 1 first',
-                '',
-                ffi.dialogManager);
-            return;
-          }
-          final option = 'privacy-mode';
-          toggleFunc(sessionId, option);
-        }
+                if (value == null) return;
+                if (ffiModel.pi.currentDisplay != 0 &&
+                    ffiModel.pi.currentDisplay != kAllDisplayValue) {
+                  msgBox(
+                      sessionId,
+                      'custom-nook-nocancel-hasclose',
+                      'info',
+                      'Please switch to Display 1 first',
+                      '',
+                      ffi.dialogManager);
+                  return;
+                }
+                final option = 'privacy-mode';
+                toggleFunc(sessionId, option);
+              }
             : null,
         child: Text(translate('Privacy mode')));
   }
 
   final privacyModeImpls =
-  pi.platformAdditions[kPlatformAdditionsSupportedPrivacyModeImpl]
-  as List<dynamic>?;
+      pi.platformAdditions[kPlatformAdditionsSupportedPrivacyModeImpl]
+          as List<dynamic>?;
   if (privacyModeImpls == null) {
     return [
       getDefaultMenu((sid, opt) async {
@@ -697,6 +793,43 @@ List<TToggleMenu> toolbarKeyboardToggles(FFI ffi) {
         value: value,
         onChanged: enabled ? onChanged : null,
         child: Text(translate('Swap control-command key'))));
+  }
+
+  // reverse mouse wheel
+  if (ffiModel.keyboard) {
+    var optionValue =
+        bind.sessionGetReverseMouseWheelSync(sessionId: sessionId) ?? '';
+    if (optionValue == '') {
+      optionValue = bind.mainGetUserDefaultOption(key: kKeyReverseMouseWheel);
+    }
+    onChanged(bool? value) async {
+      if (value == null) return;
+      await bind.sessionSetReverseMouseWheel(
+          sessionId: sessionId, value: value ? 'Y' : 'N');
+    }
+
+    final enabled = !ffi.ffiModel.viewOnly;
+    v.add(TToggleMenu(
+        value: optionValue == 'Y',
+        onChanged: enabled ? onChanged : null,
+        child: Text(translate('Reverse mouse wheel'))));
+  }
+
+  // swap left right mouse
+  if (ffiModel.keyboard) {
+    final option = 'swap-left-right-mouse';
+    final value =
+        bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
+    onChanged(bool? value) {
+      if (value == null) return;
+      bind.sessionToggleOption(sessionId: sessionId, value: option);
+    }
+
+    final enabled = !ffi.ffiModel.viewOnly;
+    v.add(TToggleMenu(
+        value: value,
+        onChanged: enabled ? onChanged : null,
+        child: Text(translate('swap-left-right-mouse'))));
   }
   return v;
 }

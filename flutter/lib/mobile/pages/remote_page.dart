@@ -1162,6 +1162,7 @@ void showOptions(
       displayToggles.add(privacyModeList[0]);
     }
   }
+
   dialogManager.show((setState, close, context) {
     var viewStyle =
         (viewStyleRadios.isNotEmpty ? viewStyleRadios[0].groupValue : '').obs;

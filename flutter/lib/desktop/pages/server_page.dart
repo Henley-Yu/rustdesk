@@ -663,20 +663,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                     ]
                   : [
                       buildPermissionIcon(
-                        client.keyboard,
-                        Icons.keyboard,
-                        (enabled) {
-                          bind.cmSwitchPermission(
-                              connId: client.id,
-                              name: "keyboard",
-                              enabled: enabled);
-                          setState(() {
-                            client.keyboard = enabled;
-                          });
-                        },
-                        translate('Enable keyboard/mouse'),
-                      ),
-                      buildPermissionIcon(
                         client.clipboard,
                         Icons.assignment_rounded,
                         (enabled) {
@@ -745,23 +731,7 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                           });
                         },
                         translate('Enable recording session'),
-                      ),
-                      // only windows support block input
-                      if (isWindows)
-                        buildPermissionIcon(
-                          client.blockInput,
-                          Icons.block,
-                          (enabled) {
-                            bind.cmSwitchPermission(
-                                connId: client.id,
-                                name: "block_input",
-                                enabled: enabled);
-                            setState(() {
-                              client.blockInput = enabled;
-                            });
-                          },
-                          translate('Enable blocking user input'),
-                        )
+                      )
                     ],
             ),
           ),
