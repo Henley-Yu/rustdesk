@@ -355,7 +355,6 @@ Widget buildConnectionCard(Client client) {
         _CmHeader(client: client),
         client.type_() == ClientType.file ||
                 client.type_() == ClientType.portForward ||
-                client.type_() == ClientType.terminal ||
                 client.disconnected
             ? Offstage()
             : _PrivilegeBoard(client: client),
@@ -500,36 +499,7 @@ class _CmHeaderState extends State<_CmHeader>
                     "(${client.peerId})",
                     style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
-                ),
-                if (client.type_() == ClientType.terminal)
-                  FittedBox(
-                    child: Text(
-                      translate("Terminal"),
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                if (client.type_() == ClientType.file)
-                  FittedBox(
-                    child: Text(
-                      translate("File Transfer"),
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                if (client.type_() == ClientType.camera)
-                  FittedBox(
-                    child: Text(
-                      translate("View Camera"),
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                if (client.portForward.isNotEmpty)
-                  FittedBox(
-                    child: Text(
-                      "Port Forward: ${client.portForward}",
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                SizedBox(height: 10.0),
+                ).marginOnly(bottom: 10.0),
                 FittedBox(
                     child: Row(
                   children: [
@@ -693,20 +663,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                     ]
                   : [
                       buildPermissionIcon(
-                        client.keyboard,
-                        Icons.keyboard,
-                        (enabled) {
-                          bind.cmSwitchPermission(
-                              connId: client.id,
-                              name: "keyboard",
-                              enabled: enabled);
-                          setState(() {
-                            client.keyboard = enabled;
-                          });
-                        },
-                        translate('Enable keyboard/mouse'),
-                      ),
-                      buildPermissionIcon(
                         client.clipboard,
                         Icons.assignment_rounded,
                         (enabled) {
@@ -775,23 +731,7 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                           });
                         },
                         translate('Enable recording session'),
-                      ),
-                      // only windows support block input
-                      if (isWindows)
-                        buildPermissionIcon(
-                          client.blockInput,
-                          Icons.block,
-                          (enabled) {
-                            bind.cmSwitchPermission(
-                                connId: client.id,
-                                name: "block_input",
-                                enabled: enabled);
-                            setState(() {
-                              client.blockInput = enabled;
-                            });
-                          },
-                          translate('Enable blocking user input'),
-                        )
+                      )
                     ],
             ),
           ),
