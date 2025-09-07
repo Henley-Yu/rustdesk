@@ -472,6 +472,7 @@ class _GeneralState extends State<_General> {
             kOptionEnableUdpPunch,
             isServer: false,
           ),
+		],
       ],
     ];
     if (!isWeb && bind.mainShowOption(key: kOptionAllowLinuxHeadless)) {
