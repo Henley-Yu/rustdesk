@@ -1608,7 +1608,7 @@ class _DisplayState extends State<_Display> {
       )
     ]);
   }
-  
+ 
   Widget trackpadSpeed(BuildContext context) {
     final initSpeed = (int.tryParse(
             bind.mainGetUserDefaultOption(key: kKeyTrackpadSpeed)) ??
