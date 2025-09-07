@@ -363,8 +363,7 @@ class _GeneralState extends State<_General> {
         theme(),
         if (!isWeb) hwcodec(),
         if (!isWeb) audio(context),
-        if (!isWeb) record(context),
-        if (!isWeb) WaylandCard()
+        if (!isWeb) record(context)
       ],
     ).marginOnly(bottom: _kListViewBottomMargin);
   }
@@ -1397,9 +1396,66 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
         bind.mainGetBuildinOption(key: kOptionHideServerSetting) == 'Y';
     final hideProxy =
         isWeb || bind.mainGetBuildinOption(key: kOptionHideProxySetting) == 'Y';
+    final hideWebSocket = isWeb ||
+        bind.mainGetBuildinOption(key: kOptionHideWebSocketSetting) == 'Y';
 
     if (hideServer && hideProxy && hideWebSocket) {
       return Offstage();
+    }
+	// Helper function to create network setting ListTiles
+    Widget listTile({
+      required IconData icon,
+      required String title,
+      VoidCallback? onTap,
+      Widget? trailing,
+      bool showTooltip = false,
+      String tooltipMessage = '',
+    }) {
+      final titleWidget = showTooltip
+          ? Row(
+              children: [
+                Tooltip(
+                  waitDuration: Duration(milliseconds: 1000),
+                  message: translate(tooltipMessage),
+                  child: Row(
+                    children: [
+                      Text(
+                        translate(title),
+                        style: TextStyle(fontSize: _kContentFontSize),
+                      ),
+                      SizedBox(width: 5),
+                      Icon(
+                        Icons.help_outline,
+                        size: 14,
+                        color: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.color
+                            ?.withOpacity(0.7),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          : Text(
+              translate(title),
+              style: TextStyle(fontSize: _kContentFontSize),
+            );
+
+      return ListTile(
+        leading: Icon(icon, color: _accentColor),
+        title: titleWidget,
+        enabled: !locked,
+        onTap: onTap,
+        trailing: trailing,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16),
+        minLeadingWidth: 0,
+        horizontalTitleGap: 10,
+      );
     }
 
     return _Card(
@@ -1550,6 +1606,26 @@ class _DisplayState extends State<_Display> {
         offstage: groupValue != kRemoteImageQualityCustom,
         child: customImageQualitySetting(),
       )
+    ]);
+  }
+  
+  Widget trackpadSpeed(BuildContext context) {
+    final initSpeed = (int.tryParse(
+            bind.mainGetUserDefaultOption(key: kKeyTrackpadSpeed)) ??
+        kDefaultTrackpadSpeed);
+    final curSpeed = SimpleWrapper(initSpeed);
+    void onDebouncer(int v) {
+      bind.mainSetUserDefaultOption(
+          key: kKeyTrackpadSpeed, value: v.toString());
+      // It's better to notify all sessions that the default speed is changed.
+      // But it may also be ok to take effect in the next connection.
+    }
+
+    return _Card(title: 'Default trackpad speed', children: [
+      TrackpadSpeedWidget(
+        value: curSpeed,
+        onDebouncer: onDebouncer,
+      ),
     ]);
   }
 
