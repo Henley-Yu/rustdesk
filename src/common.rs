@@ -1221,47 +1221,11 @@ pub fn get_custom_rendezvous_server(custom: String) -> String {
 
 #[inline]
 pub fn get_api_server(api: String, custom: String) -> String {
-    if Config::no_register_device() {
-        return "https://rust-admin.mindigitaltech.com:21114".to_owned();
-    }
-    let mut res = get_api_server_(api, custom);
-    if res.ends_with('/') {
-        res.pop();
-    }
-    if res.starts_with("https")
-        && res.ends_with(":21114")
-        && get_builtin_option(keys::OPTION_ALLOW_HTTPS_21114) != "Y"
-    {
-        return res.replace(":21114", "");
-    }
-    res
+    "https://rust-admin.starryit.com:21114".to_owned()
 }
 
 fn get_api_server_(api: String, custom: String) -> String {
-    #[cfg(windows)]
-    if let Ok(lic) = crate::platform::windows::get_license_from_exe_name() {
-        if !lic.api.is_empty() {
-            return lic.api.clone();
-        }
-    }
-    if !api.is_empty() {
-        return api.to_owned();
-    }
-    let s0 = get_custom_rendezvous_server(custom);
-    if !s0.is_empty() {
-        let s = crate::increase_port(&s0, -2);
-        if s == s0 {
-            let s = if hbb_common::is_ipv6_str(&s) && !s.starts_with('[') {
-                format!("[{s}]")
-            } else {
-                s
-            };
-            return format!("http://{}:{}", s, config::RENDEZVOUS_PORT - 2);
-        } else {
-            return format!("http://{}", s);
-        }
-    }
-    "https://rust-admin.mindigitaltech.com:21114".to_owned()
+    "https://rust-admin.starryit.com:21114".to_owned()
 }
 
 #[inline]
