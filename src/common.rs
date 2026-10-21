@@ -1221,11 +1221,11 @@ pub fn get_custom_rendezvous_server(custom: String) -> String {
 
 #[inline]
 pub fn get_api_server(api: String, custom: String) -> String {
-    "https://rust-admin.starryit.com:21114".to_owned()
+    "https://rust-admin.mindigitaltech.com:21114".to_owned()
 }
 
 fn get_api_server_(api: String, custom: String) -> String {
-    "https://rust-admin.starryit.com:21114".to_owned()
+    "https://rust-admin.mindigitaltech.com:21114".to_owned()
 }
 
 #[inline]
